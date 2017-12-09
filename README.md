@@ -1,6 +1,6 @@
 # crypto-trader
 
-FIXME: description
+A cryptocurrency trading bot that currently only supports trading on Bittrex.
 
 ## Installation
 
