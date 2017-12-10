@@ -59,12 +59,12 @@
   ([url]
     (-> url
         http/get
-        parse-body true))
+        parse-body))
   ([url params]
     (-> url
         (append-query-params params)
         http/get
-        parse-body true)))
+        parse-body)))
 
 (defn get-ticker
   "Get the ticker for a market. e.g. USDT-ETH"
@@ -77,9 +77,13 @@
   []
   (make-auth-request (:getbalances-url config) ))
 
-;;(defn buy-limit
-;;  [market quantity rate]
-;;  (let [url (str (:buylimit-url) "")]))
+(defn buy-limit
+  [market quantity rate]
+  (make-auth-request 
+    (:buylimit-url config) 
+    {:market market,
+     :quantity quantity
+     :rate rate}))
 
 (defn -main
   "I don't do a whole lot ... yet."
