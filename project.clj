@@ -7,7 +7,8 @@
                  [pandect "0.6.1"]
                  [clj-http "3.7.0"]
                  [cheshire "5.8.0"]
-                 [environ "1.1.0"]]
+                 [environ "1.1.0"]
+                 [clj-time "0.14.2"]]
   :main ^:skip-aot crypto-trader.core
   :target-path "target/%s"
   :profiles {:uberjar {:aot :all}}
