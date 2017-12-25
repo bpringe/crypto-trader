@@ -22,9 +22,7 @@
 
 (defn get-order-book
   ([product-id]
-   	(-> (str (:api-base-url config) "/products/" product-id "/book")
-       	(http/get {:as :json})
-       	:body))
+   	(get-order-book product-id 1))
   ([product-id level]
    	(-> (str (:api-base-url config) "/products/" product-id "/book?level=" level)
         (http/get {:as :json})
