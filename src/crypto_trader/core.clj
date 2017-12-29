@@ -4,9 +4,17 @@
     [cheshire.core :refer :all]
     [clj-http.client :as http]
     [environ.core :refer [env]]
-    [clj-time.core :as t]))
+    [clj-time.core :as t]
+    [clj-time.coerce :as c]
+    [clj-time.format :as f]))
 
-(def config {:api-base-url "https://api.gdax.com"})
+(def config {:api-base-url "https://api.gdax.com"
+             :granularities {:1m 60
+                             :5m 300
+                             :15m 900
+                             :1h 3600
+                             :6h 21600
+                             :1d 86400}})
 
 (defn get-ticker
   [product-id]
@@ -46,6 +54,7 @@
        "&granularity="
        granularity))
 
+;; Remember to use (t/today-at 00 00) to avoid sending time ahead of server time
 (defn get-historic-rates
   [product-id start end granularity]
   (-> (build-historic-rates-url product-id start end granularity)
@@ -62,3 +71,13 @@
   "I don't do a whole lot ... yet."
   [& args]
   (println "Hello, World!"))
+
+(->> (get-historic-rates "eth-usd"
+                         (t/minus (t/today-at 00 00) (t/days 7))
+                         (t/today-at 00 00)
+                         (:1d (:granularities config)))
+      (map (fn [rate-vector]
+        (c/from-long (* 1000 (first rate-vector)))))
+      reverse)
+      pprint)
+
