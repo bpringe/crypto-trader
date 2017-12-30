@@ -78,6 +78,6 @@
                          (:1d (:granularities config)))
       (map (fn [rate-vector]
         (c/from-long (* 1000 (first rate-vector)))))
-      reverse)
+      reverse
       pprint)
 
