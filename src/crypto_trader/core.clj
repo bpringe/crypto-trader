@@ -82,7 +82,31 @@
       (http/get {:as :json})
       :body))
 
+(defn- sign-request
+  [timestamp method path body]
+  (let [secret (:api-secret config)]))
 
+(defn- make-signed-request 
+  [method path & [opts]]
+  (let [timestamp (:epoch (get-time))
+        signature (sign-request timestamp method path (:body opts))]
+    (http/request
+      (merge {:method method
+              :url (str (:api-base-url config) path)
+              :as :json
+              :headers {"CB-ACCESS-KEY" (:api-key config)
+                        "CB-ACCESS-SIGN" signature
+                        "CB-ACCESS-TIMESTAMP" timestamp
+                        "CB-ACCESS-PASSPHRASE" (:api-passphrase config)}}
+             opts))))
+             
+              
+
+(http/request
+   {:method "GET" :url (str (:api-base-url config) "/time") :as :json})
+
+(defn get-accounts []
+  (make-signed-request "GET" "/accounts"))
 
 (defn -main
   "I don't do a whole lot ... yet."
