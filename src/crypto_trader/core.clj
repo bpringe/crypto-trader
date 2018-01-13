@@ -1,12 +1,11 @@
 (ns crypto-trader.core
   (:require 
-    [pandect.algo.sha512 :refer :all]
+    [pandect.algo.sha256 :refer :all]
     [cheshire.core :refer :all]
     [clj-http.client :as http]
     [environ.core :refer [env]]
     [clj-time.core :as t]
-    [clj-time.coerce :as c]
-    [clj-time.format :as f]))
+    [clojure.data.codec.base64 :as b64]))
 
 (def config {:api-base-url "https://api.gdax.com"
              :granularities {:1m 60
@@ -19,7 +18,7 @@
               :api-secret (env :api-secret)
               :api-passphrase (env :api-passphrase)})
 
-(defn get-products
+(defn get-products 
   []
   (-> (str (:api-base-url config) "/products")
       (http/get {:as :json})
@@ -33,13 +32,13 @@
       (http/get {:as :json})
       :body)))
 
-(defn get-ticker
+(defn get-ticker 
   [product-id]
   (-> (str (:api-base-url config) "/products/" product-id "/ticker")
       (http/get {:as :json})
       :body))
 
-(defn get-trades
+(defn get-trades 
   [product-id]
   (-> (str (:api-base-url config) "/products/" product-id "/trades")
       (http/get {:as :json})
@@ -83,8 +82,21 @@
       :body))
 
 (defn- sign-request
-  [timestamp method path body]
-  (let [secret (:api-secret config)]))
+  ([timestamp method path]
+   (sign-request timestamp method path ""))
+  ([timestamp method path body]
+   (let [secret-decoded (b64/decode (.getBytes (:api-secret config)))
+         prehash-string (str timestamp (clojure.string/upper-case method) path body)
+         hmac (sha256-hmac prehash-string secret-decoded)]
+      (->> hmac
+           .getBytes
+           b64/encode
+           String.))))
+
+        
+(let [timestamp (:epoch (get-time))]
+  (sign-request timestamp "get" "/accounts"))
+
 
 (defn- make-signed-request 
   [method path & [opts]]
@@ -100,8 +112,7 @@
                         "CB-ACCESS-PASSPHRASE" (:api-passphrase config)}}
              opts))))
              
-              
-
+            
 (http/request
    {:method "GET" :url (str (:api-base-url config) "/time") :as :json})
 
@@ -112,3 +123,4 @@
   "I don't do a whole lot ... yet."
   [& args]
   (println "Hello, World!"))
+

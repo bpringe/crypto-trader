@@ -8,7 +8,8 @@
                  [clj-http "3.7.0"]
                  [cheshire "5.8.0"]
                  [environ "1.1.0"]
-                 [clj-time "0.14.2"]]
+                 [clj-time "0.14.2"]
+                 [org.clojure/data.codec "0.1.1"]]
   :main ^:skip-aot crypto-trader.core
   :target-path "target/%s"
   :profiles {:uberjar {:aot :all}}
