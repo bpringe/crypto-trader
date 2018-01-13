@@ -93,14 +93,9 @@
            b64/encode
            String.))))
 
-        
-(let [timestamp (:epoch (get-time))]
-  (sign-request timestamp "get" "/accounts"))
-
-
 (defn- make-signed-request 
   [method path & [opts]]
-  (let [timestamp (:epoch (get-time))
+  (let [timestamp (long (:epoch (get-time)))
         signature (sign-request timestamp method path (:body opts))]
     (http/request
       (merge {:method method
@@ -112,10 +107,6 @@
                         "CB-ACCESS-PASSPHRASE" (:api-passphrase config)}}
              opts))))
              
-            
-(http/request
-   {:method "GET" :url (str (:api-base-url config) "/time") :as :json})
-
 (defn get-accounts []
   (make-signed-request "GET" "/accounts"))
 
