@@ -81,30 +81,30 @@
       (http/get {:as :json})
       :body))
 
-(defn- sign-request
+(defn- create-signature
   ([timestamp method path]
-   (sign-request timestamp method path ""))
+   (create-signature timestamp method path ""))
   ([timestamp method path body]
    (let [secret-decoded (b64/decode (.getBytes (:api-secret config)))
          prehash-string (str timestamp (clojure.string/upper-case method) path body)
          hmac (sha256-hmac prehash-string secret-decoded)]
-      (->> hmac
-           .getBytes
-           b64/encode
-           String.))))
+      (-> hmac
+          .getBytes
+          b64/encode
+          (String. "UTF-8")))))
 
 (defn- make-signed-request 
   [method path & [opts]]
   (let [timestamp (long (:epoch (get-time)))
-        signature (sign-request timestamp method path (:body opts))]
+        signature (create-signature timestamp method path (:body opts))]
     (http/request
       (merge {:method method
               :url (str (:api-base-url config) path)
               :as :json
-              :headers {"CB-ACCESS-KEY" (:api-key config)
-                        "CB-ACCESS-SIGN" signature
-                        "CB-ACCESS-TIMESTAMP" timestamp
-                        "CB-ACCESS-PASSPHRASE" (:api-passphrase config)}}
+              :headers {:CB-ACCESS-KEY (:api-key config)
+                        :CB-ACCESS-SIGN signature
+                        :CB-ACCESS-TIMESTAMP timestamp
+                        :CB-ACCESS-PASSPHRASE (:api-passphrase config)}}
              opts))))
              
 (defn get-accounts []
