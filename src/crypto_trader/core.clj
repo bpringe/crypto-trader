@@ -5,7 +5,8 @@
     [clj-http.client :as http]
     [environ.core :refer [env]]
     [clj-time.core :as t]
-    [clojure.data.codec.base64 :as b64]))
+    [clojure.data.codec.base64 :as b64]
+    [clojure.string :as str]))
 
 (def config {:api-base-url "https://api.gdax.com"
              :granularities {:1m 60
@@ -17,6 +18,32 @@
               :api-key (env :api-key)
               :api-secret (env :api-secret)
               :api-passphrase (env :api-passphrase)})
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;; Request Building ;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(defn- build-request
+  [method path & [opts]]
+  (merge {:method method
+          :url (str (:api-base-url config)
+                    (if (str/starts-with? path "/") path (str "/" path)))}
+         opts))
+
+(defn- parse-request-path
+  [request-url]
+  (str/split request-url #".com" ))
+
+
+
+(defn- get-auth-headers []
+  {:headers {"CB-ACCESS-KEY" (:api-key config)
+             "CB-ACCESS-SIGN" signature
+             "CB-ACCESS-TIMESTAMP" timestamp
+             "CB-ACCESS-PASSPHRASE" (:api-passphrase config)
+             "Content-Type" "application/json"}})
+
+(defn- sign-request
+  [])
 
 (defn get-products 
   []
@@ -81,18 +108,17 @@
       (http/get {:as :json})
       :body))
 
-(defn- create-signature
+(defn create-signature
   ([timestamp method path]
-   (create-signature timestamp method path ""))
+    (create-signature timestamp method path ""))
   ([timestamp method path body]
-   (let [secret-decoded (b64/decode (.getBytes (:api-secret config)))
-         prehash-string (str timestamp (clojure.string/upper-case method) path body)
-         hmac (sha256-hmac prehash-string secret-decoded)]
+    (let [secret-decoded (b64/decode (.getBytes (:api-secret config)))
+          prehash-string (str timestamp (str/upper-case method) path body)
+          hmac (sha256-hmac* prehash-string secret-decoded)]
       (-> hmac
-          .getBytes
           b64/encode
           String.))))
-      
+
 (defn- send-signed-request 
   [method path & [opts]]
   (let [url (str (:api-base-url config) path)
@@ -106,17 +132,22 @@
                         "CB-ACCESS-SIGN" signature
                         "CB-ACCESS-TIMESTAMP" timestamp
                         "CB-ACCESS-PASSPHRASE" (:api-passphrase config)
-                        "Content-Type" "application/json"}
-              :debug true}
+                        "Content-Type" "application/json"}}
              opts))))
-             
+
 (defn get-accounts []
   (send-signed-request "GET" "/accounts"))
-  
-(send-signed-request "GET" "/accounts")
 
-; (def secret-decoded (String. (b64/decode (.getBytes (:api-secret config)))))
-; (sha256-hmac "1516214750GET/fills" secret-decoded)
+(get-accounts)
+
+; prehash-string: 1516393491GET/accounts
+; hmac: b88f0f5c46a292afa38973daaed8ab34c25147a44fc14455c471aad2f8ce5148
+; signature: Yjg4ZjBmNWM0NmEyOTJhZmEzODk3M2RhYWVkOGFiMzRjMjUxNDdhNDRmYzE0NDU1YzQ3MWFhZDJmOGNlNTE0OA==
+
+; (get-signature (:api-secret config) "1516393491GET/accounts")
+; (create-signature 1516393491 "GET" "/accounts")
+; (create-signature-new 1516393491 "GET" "/accounts")
+; (sha256-hmac* "1516393491GET/accounts" (:api-secret config))
 
 (defn -main
   "I don't do a whole lot ... yet."
