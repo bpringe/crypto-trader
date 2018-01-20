@@ -36,6 +36,19 @@
   [request-url]
   (second (str/split request-url #".com")))
 
+(defn- create-prehash-string
+  [request timestamp]
+  (str timestamp (str/upper-case (:method request)) (parse-request-path (:url request)) (:body request)))
+
+(defn- create-signature
+  [request timestamp]
+  (let [secret-decoded (b64/decode (.getBytes (:api-secret config)))
+        prehash-string (create-prehash-string request timestamp)
+        hmac (sha256-hmac* prehash-string secret-decoded)]
+    (-> hmac
+        b64/encode
+        String.)))
+
 (defn- sign-request 
   [request]
   (let [timestamp (quote (System/currentTimeMillis) 1000)]
