@@ -19,9 +19,12 @@
               :api-secret (env :api-secret)
               :api-passphrase (env :api-passphrase)})
 
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;; Request Building ;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defn- build-request
   [method path & [opts]]
   (merge {:method method
@@ -31,19 +34,25 @@
 
 (defn- parse-request-path
   [request-url]
-  (str/split request-url #".com" ))
+  (second (str/split request-url #".com")))
 
+(defn- sign-request 
+  [request]
+  (let [timestamp (quote (System/currentTimeMillis) 1000)]
+    (merge request {:headers {"CB-ACCESS-KEY" (:api-key config)
+                              "CB-ACCESS-SIGN" (create-signature request timestamp)
+                              "CB-ACCESS-TIMESTAMP" timestamp
+                              "CB-ACCESS-PASSPHRASE" (:api-passphrase config)}})))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;;; Public Endpoints ;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defn- get-auth-headers []
-  {:headers {"CB-ACCESS-KEY" (:api-key config)
-             "CB-ACCESS-SIGN" signature
-             "CB-ACCESS-TIMESTAMP" timestamp
-             "CB-ACCESS-PASSPHRASE" (:api-passphrase config)
-             "Content-Type" "application/json"}})
-
-(defn- sign-request
-  [])
+(defn get-time
+  []
+  (-> (str (:api-base-url config) "/time")
+      (http/get {:as :json})
+      :body))
 
 (defn get-products 
   []
@@ -102,22 +111,18 @@
       (http/get {:as :json})
       :body))
 
-(defn get-time
-  []
-  (-> (str (:api-base-url config) "/time")
-      (http/get {:as :json})
-      :body))
+
 
 (defn create-signature
   ([timestamp method path]
-    (create-signature timestamp method path ""))
+   (create-signature timestamp method path ""))
   ([timestamp method path body]
-    (let [secret-decoded (b64/decode (.getBytes (:api-secret config)))
-          prehash-string (str timestamp (str/upper-case method) path body)
-          hmac (sha256-hmac* prehash-string secret-decoded)]
-      (-> hmac
-          b64/encode
-          String.))))
+   (let [secret-decoded (b64/decode (.getBytes (:api-secret config)))
+         prehash-string (str timestamp (str/upper-case method) path body)
+         hmac (sha256-hmac* prehash-string secret-decoded)]
+     (-> hmac
+         b64/encode
+         String.))))
 
 (defn- send-signed-request 
   [method path & [opts]]
