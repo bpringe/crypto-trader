@@ -6,7 +6,12 @@
     [environ.core :refer [env]]
     [clj-time.core :as t]
     [clojure.data.codec.base64 :as b64]
-    [clojure.string :as str]))
+    [clojure.string :as str]
+    [clojure.pprint :refer [pprint]]))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;; Configuration ;;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (def config {:api-base-url "https://api.gdax.com"
              :granularities {:1m 60
@@ -19,18 +24,21 @@
               :api-secret (env :api-secret)
               :api-passphrase (env :api-passphrase)})
 
-
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;; Request Building ;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn- build-request
   [method path & [opts]]
-  (merge {:method method
+  (merge {:method (str/upper-case method)
           :url (str (:api-base-url config)
-                    (if (str/starts-with? path "/") path (str "/" path)))}
+                    (if (str/starts-with? path "/") path (str "/" path)))
+          :as :json}
          opts))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;;;;;;;;;; Authentication ;;;;;;;;;;;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defn- parse-request-path
   [request-url]
@@ -38,7 +46,7 @@
 
 (defn- create-prehash-string
   [request timestamp]
-  (str timestamp (str/upper-case (:method request)) (parse-request-path (:url request)) (:body request)))
+  (str timestamp (:method request) (parse-request-path (:url request)) (:body request)))
 
 (defn- create-signature
   [request timestamp]
@@ -51,7 +59,7 @@
 
 (defn- sign-request 
   [request]
-  (let [timestamp (quote (System/currentTimeMillis) 1000)]
+  (let [timestamp (quot (System/currentTimeMillis) 1000)]
     (merge request {:headers {"CB-ACCESS-KEY" (:api-key config)
                               "CB-ACCESS-SIGN" (create-signature request timestamp)
                               "CB-ACCESS-TIMESTAMP" timestamp
@@ -63,24 +71,20 @@
 
 (defn get-time
   []
-  (-> (str (:api-base-url config) "/time")
-      (http/get {:as :json})
-      :body))
+  (http/request (build-request "get" "/time")))
 
 (defn get-products 
   []
-  (-> (str (:api-base-url config) "/products")
-      (http/get {:as :json})
-      :body))
+  (http/request (build-request "get" "/products")))
 
 (defn get-order-book
   ([product-id]
    (get-order-book product-id 1))
   ([product-id level]
-   (-> (str (:api-base-url config) "/products/" product-id "/book?level=" level)
-      (http/get {:as :json})
-      :body)))
-
+   (->> (str "/products/" product-id "/book?level=" level)
+       (build-request "get")
+       http/request)))
+   
 (defn get-ticker 
   [product-id]
   (-> (str (:api-base-url config) "/products/" product-id "/ticker")
@@ -124,8 +128,6 @@
       (http/get {:as :json})
       :body))
 
-
-
 (defn create-signature
   ([timestamp method path]
    (create-signature timestamp method path ""))
@@ -155,17 +157,6 @@
 
 (defn get-accounts []
   (send-signed-request "GET" "/accounts"))
-
-(get-accounts)
-
-; prehash-string: 1516393491GET/accounts
-; hmac: b88f0f5c46a292afa38973daaed8ab34c25147a44fc14455c471aad2f8ce5148
-; signature: Yjg4ZjBmNWM0NmEyOTJhZmEzODk3M2RhYWVkOGFiMzRjMjUxNDdhNDRmYzE0NDU1YzQ3MWFhZDJmOGNlNTE0OA==
-
-; (get-signature (:api-secret config) "1516393491GET/accounts")
-; (create-signature 1516393491 "GET" "/accounts")
-; (create-signature-new 1516393491 "GET" "/accounts")
-; (sha256-hmac* "1516393491GET/accounts" (:api-secret config))
 
 (defn -main
   "I don't do a whole lot ... yet."
